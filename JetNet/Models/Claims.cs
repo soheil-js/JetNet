@@ -4,13 +4,13 @@ namespace JetNet.Models
 {
     public class Claims
     {
-        [JsonProperty("issuer")]
+        [JsonProperty("iss")]
         public string Issuer { get; set; }
 
-        [JsonProperty("subject")]
+        [JsonProperty("sub")]
         public string Subject { get; set; }
 
-        [JsonProperty("audience")]
+        [JsonProperty("aud")]
         public List<string> Audience { get; set; } = new List<string>();
     }
 }

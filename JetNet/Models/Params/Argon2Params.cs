@@ -1,11 +1,22 @@
-﻿namespace JetNet.Models.Params
+﻿using Newtonsoft.Json;
+
+namespace JetNet.Models.Params
 {
     internal class Argon2Params : IKdfParams
     {
-        public string type => "Argon2id";
-        public long memory { get; set; }
-        public long iterations { get; set; }
-        public int parallelism { get; set; }
-        public string salt { get; set; }
+        [JsonProperty("t")]
+        public string Type => "Argon2id";
+
+        [JsonProperty("m")]
+        public long Memory { get; set; }
+
+        [JsonProperty("i")]
+        public long Iterations { get; set; }
+
+        [JsonProperty("p")]
+        public int Parallelism { get; set; }
+
+        [JsonProperty("s")]
+        public string Salt { get; set; }
     }
 }

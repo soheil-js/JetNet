@@ -1,8 +1,13 @@
-﻿namespace JetNet.Models.Core
+﻿using Newtonsoft.Json;
+
+namespace JetNet.Models.Core
 {
     internal class Payload
     {
-        public Data content { get; set; }
-        public Data cek { get; set; }
+        [JsonProperty("ct")]
+        public Data Content { get; set; }
+
+        [JsonProperty("k")]
+        public Data Cek { get; set; }
     }
 }

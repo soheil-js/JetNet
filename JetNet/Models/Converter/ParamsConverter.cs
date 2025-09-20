@@ -14,7 +14,7 @@ namespace JetNet.Models.Converter
         public override IKdfParams ReadJson(JsonReader reader, Type objectType, IKdfParams existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             var obj = JObject.Load(reader);
-            var type = obj["type"]?.ToString() ?? throw new Exception("KDF type missing");
+            var type = obj["t"]?.ToString() ?? throw new Exception("KDF type missing");
 
             return type switch
             {

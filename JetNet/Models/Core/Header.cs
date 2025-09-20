@@ -6,14 +6,29 @@ namespace JetNet.Models.Core
 {
     internal class Header
     {
-        public string symmetric { get; set; }
+        [JsonProperty("enc")]
+        public string Symmetric { get; set; }
+
         [JsonConverter(typeof(ParamsConverter))]
-        public IKdfParams kdf { get; set; }
-        public Claims? claims { get; set; }
-        public Guid id { get; set; }
-        public DateTime issuedAt { get; set; }
-        public DateTime notBefore { get; set; }
-        public DateTime expiration { get; set; }
-        public string type { get; set; } = "JET";
+        [JsonProperty("kdf")]
+        public IKdfParams Kdf { get; set; }
+
+        [JsonProperty("clm")]
+        public Claims? Claims { get; set; }
+
+        [JsonProperty("jti")]
+        public Guid Id { get; set; }
+
+        [JsonProperty("iat")]
+        public DateTime IssuedAt { get; set; }
+
+        [JsonProperty("nbf")]
+        public DateTime NotBefore { get; set; }
+
+        [JsonProperty("exp")]
+        public DateTime Expiration { get; set; }
+
+        [JsonProperty("typ")]
+        public string Type { get; set; } = "JET";
     }
 }

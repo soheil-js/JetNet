@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,8 +9,13 @@ namespace JetNet.Models.Core
 {
     internal class Data
     {
+        [JsonProperty("c")]
         public string ciphertext { get; set; }
+
+        [JsonProperty("t")]
         public string tag { get; set; }
+
+        [JsonProperty("n")]
         public string nonce { get; set; }
     }
 }

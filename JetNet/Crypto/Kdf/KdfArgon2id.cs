@@ -38,10 +38,10 @@ namespace JetNet.Crypto.Kdf
         {
             return new Argon2Params
             {
-                memory = _parameters.MemorySize,
-                parallelism = _parameters.DegreeOfParallelism,
-                iterations = _parameters.NumberOfPasses,
-                salt = Base64Url.Encode(salt)
+                Memory = _parameters.MemorySize,
+                Parallelism = _parameters.DegreeOfParallelism,
+                Iterations = _parameters.NumberOfPasses,
+                Salt = Base64Url.Encode(salt)
             };
         }
     }

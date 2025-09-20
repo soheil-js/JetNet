@@ -43,8 +43,8 @@ namespace JetNet.Crypto.Mapper
         {
             return kdfParams switch
             {
-                Argon2Params argon2 => KdfFactory.CreateArgon2id(argon2.parallelism, argon2.memory, argon2.iterations),
-                ScryptParams scrypt => KdfFactory.CreateScrypt(scrypt.cost, scrypt.blockSize, scrypt.parallelization),
+                Argon2Params argon2 => KdfFactory.CreateArgon2id(argon2.Parallelism, argon2.Memory, argon2.Iterations),
+                ScryptParams scrypt => KdfFactory.CreateScrypt(scrypt.Cost, scrypt.BlockSize, scrypt.Parallelization),
                 _ => throw new ArgumentOutOfRangeException(nameof(kdfParams), kdfParams, "Unsupported KDF parameters type.")
             };
         }

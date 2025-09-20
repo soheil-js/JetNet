@@ -38,10 +38,10 @@ namespace JetNet.Crypto.Kdf
         {
             return new ScryptParams
             {
-                cost = _parameters.Cost,
-                blockSize = _parameters.BlockSize,
-                parallelization = _parameters.Parallelization,
-                salt = Base64Url.Encode(salt)
+                Cost = _parameters.Cost,
+                BlockSize = _parameters.BlockSize,
+                Parallelization = _parameters.Parallelization,
+                Salt = Base64Url.Encode(salt)
             };
         }
     }

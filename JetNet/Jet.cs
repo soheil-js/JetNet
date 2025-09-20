@@ -50,13 +50,13 @@ namespace JetNet
             // --- Header ---
             Header header = new Header
             {
-                symmetric = symmetric.SymmetricToString(),
-                kdf = kdf.GetParams(salt),
-                id = Guid.NewGuid(),
-                claims = claims,
-                issuedAt = now,
-                notBefore = nbf,
-                expiration = exp
+                Symmetric = symmetric.SymmetricToString(),
+                Kdf = kdf.GetParams(salt),
+                Id = Guid.NewGuid(),
+                Claims = claims,
+                IssuedAt = now,
+                NotBefore = nbf,
+                Expiration = exp
             };
             string headerJson = CanonicalizeObject(header);
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerJson);
@@ -68,13 +68,13 @@ namespace JetNet
             // --- Build Payload ---
             Payload jetPayload = new Payload
             {
-                content = new Data()
+                Content = new Data()
                 {
                     ciphertext = Base64Url.Encode(encryptedContent.ciphertext),
                     tag = Base64Url.Encode(encryptedContent.tag),
                     nonce = Base64Url.Encode(contentNonce)
                 },
-                cek = new Data()
+                Cek = new Data()
                 {
                     ciphertext = Base64Url.Encode(encryptedCek.ciphertext),
                     tag = Base64Url.Encode(encryptedCek.tag),
@@ -111,7 +111,7 @@ namespace JetNet
             ICipher cipher;
             try
             {
-                cipher = CryptoMapper.SymmetricFromString(header.symmetric).ToCipher();
+                cipher = CryptoMapper.SymmetricFromString(header.Symmetric).ToCipher();
             }
             catch (Exception ex)
             {
@@ -121,7 +121,7 @@ namespace JetNet
             byte[] salt;
             try
             {
-                salt = Base64Url.Decode(header.kdf.salt ?? throw new JetTokenException("Salt missing in header KDF parameters."));
+                salt = Base64Url.Decode(header.Kdf.Salt ?? throw new JetTokenException("Salt missing in header KDF parameters."));
             }
             catch (FormatException ex)
             {
@@ -131,7 +131,7 @@ namespace JetNet
             IKdf kdf;
             try
             {
-                kdf = header.kdf.ToKdf();
+                kdf = header.Kdf.ToKdf();
             }
             catch (Exception ex)
             {
@@ -171,18 +171,18 @@ namespace JetNet
             {
                 byte[] headerBytes = Encoding.UTF8.GetBytes(CanonicalizeObject(header));
                 keyForContent = cipher.Decrypt(
-                    Base64Url.Decode(payload.cek.ciphertext),
-                    Base64Url.Decode(payload.cek.tag),
+                    Base64Url.Decode(payload.Cek.ciphertext),
+                    Base64Url.Decode(payload.Cek.tag),
                     keyForCek,
-                    Base64Url.Decode(payload.cek.nonce),
+                    Base64Url.Decode(payload.Cek.nonce),
                     headerBytes
                 ) ?? throw new JetTokenException("Failed to decrypt CEK.");
 
                 decryptedBytes = cipher.Decrypt(
-                    Base64Url.Decode(payload.content.ciphertext),
-                    Base64Url.Decode(payload.content.tag),
+                    Base64Url.Decode(payload.Content.ciphertext),
+                    Base64Url.Decode(payload.Content.tag),
                     keyForContent,
-                    Base64Url.Decode(payload.content.nonce),
+                    Base64Url.Decode(payload.Content.nonce),
                     headerBytes
                 ) ?? throw new JetTokenException("Failed to decrypt content.");
             }
@@ -193,23 +193,23 @@ namespace JetNet
 
             // --- Validate timing ---
             var now = DateTime.UtcNow;
-            if (header.notBefore > now)
-                throw new JetTokenException($"Token is not valid yet. NotBefore: {header.notBefore:u}, Now: {now:u}");
-            if (header.expiration < now)
-                throw new JetTokenException($"Token has expired. Expiration: {header.expiration:u}, Now: {now:u}");
+            if (header.NotBefore > now)
+                throw new JetTokenException($"Token is not valid yet. NotBefore: {header.NotBefore:u}, Now: {now:u}");
+            if (header.Expiration < now)
+                throw new JetTokenException($"Token has expired. Expiration: {header.Expiration:u}, Now: {now:u}");
 
             // --- Validate claims ---
-            if (validateClaims != null && header.claims != null)
+            if (validateClaims != null && header.Claims != null)
             {
-                if (!validateClaims(header.claims))
+                if (!validateClaims(header.Claims))
                     throw new JetTokenException("Claims validation failed: token is not authorized or contains invalid claims.");
             }
 
             // --- Validate token id ---
             if (validateTokenId != null)
             {
-                if (!validateTokenId(header.id.ToString()))
-                    throw new JetTokenException($"Token ID validation failed: {header.id} is not recognized or revoked.");
+                if (!validateTokenId(header.Id.ToString()))
+                    throw new JetTokenException($"Token ID validation failed: {header.Id} is not recognized or revoked.");
             }
 
             // --- Deserialize payload ---
@@ -234,7 +234,7 @@ namespace JetNet
             {
                 var jObj = JObject.FromObject(obj, new JsonSerializer
                 {
-                    NullValueHandling = NullValueHandling.Include,
+                    NullValueHandling = NullValueHandling.Ignore,
                     DefaultValueHandling = DefaultValueHandling.Include
                 });
 

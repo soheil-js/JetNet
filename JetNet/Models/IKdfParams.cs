@@ -2,7 +2,7 @@
 {
     public interface IKdfParams
     {
-        string type { get; }
-        string salt { get; }
+        string Type { get; }
+        string Salt { get; }
     }
 }

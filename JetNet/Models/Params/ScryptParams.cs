@@ -1,11 +1,22 @@
-﻿namespace JetNet.Models.Params
+﻿using Newtonsoft.Json;
+
+namespace JetNet.Models.Params
 {
     internal class ScryptParams : IKdfParams
     {
-        public string type => "Scrypt";
-        public long cost { get; set; }
-        public int blockSize { get; set; }
-        public int parallelization { get; set; }
-        public string salt { get; set; }
+        [JsonProperty("t")]
+        public string Type => "Scrypt";
+
+        [JsonProperty("c")]
+        public long Cost { get; set; }
+
+        [JsonProperty("b")]
+        public int BlockSize { get; set; }
+
+        [JsonProperty("p")]
+        public int Parallelization { get; set; }
+
+        [JsonProperty("s")]
+        public string Salt { get; set; }
     }
 }
