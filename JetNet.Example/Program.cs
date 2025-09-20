@@ -13,7 +13,7 @@ Claims claims = new Claims()
     Subject = "user-authentication",
 };
 claims.Audience.AddRange("app-web", "app-mobile", "api-service");
-string token = jet.Encode(payload, claims, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddSeconds(10));
+string token = jet.Encode(payload, claims, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddHours(24));
 
 // Decode
 var decoded = jet.Decode<dynamic>(token, ValidateClaims, ValidateTokenID);

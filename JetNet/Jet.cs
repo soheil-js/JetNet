@@ -1,5 +1,4 @@
-﻿using System.Text;
-using JetNet.Crypto;
+﻿using JetNet.Crypto;
 using JetNet.Crypto.Base64;
 using JetNet.Crypto.Mapper;
 using JetNet.Exceptions;
@@ -7,6 +6,8 @@ using JetNet.Models;
 using JetNet.Models.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
+using System.Text;
 
 namespace JetNet
 {
@@ -44,8 +45,9 @@ namespace JetNet
             rng.GetBytes(contentNonce);
 
             var now = DateTime.UtcNow;
-            var nbf = notBefore ?? now;
-            var exp = expiration ?? DateTime.UtcNow.AddHours(1);
+            var iat = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            var nbf = (notBefore ?? now).ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            var exp = (expiration ?? now.AddHours(1)).ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
             // --- Header ---
             Header header = new Header
@@ -54,9 +56,9 @@ namespace JetNet
                 Kdf = kdf.GetParams(salt),
                 Id = Guid.NewGuid(),
                 Claims = claims,
-                IssuedAt = now,
-                NotBefore = nbf,
-                Expiration = exp
+                IssuedAt = DateTime.Parse(iat, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
+                NotBefore = DateTime.Parse(nbf, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
+                Expiration = DateTime.Parse(exp, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal)
             };
             string headerJson = CanonicalizeObject(header);
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerJson);
