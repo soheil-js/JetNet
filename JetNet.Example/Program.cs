@@ -3,16 +3,20 @@ using JetNet.Crypto;
 using JetNet.Models;
 
 var jet = new Jet("myStrongPassword123!");
-var payload = new { user = "Soheil Jashnsaz", role = "admin" };
 
-// Choose Argon2id + AES-256-GCM
-var kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
+// Data
+var payload = new { user = "Soheil Jashnsaz", role = "admin" };
 Claims claims = new Claims()
 {
     Issuer = "mycompany.com",
     Subject = "user-authentication",
 };
 claims.Audience.AddRange("app-web", "app-mobile", "api-service");
+
+// Choose Argon2id + AES-256-GCM
+var kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
+
+// Encode
 string token = jet.Encode(payload, claims, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddHours(24));
 
 // Decode

@@ -85,6 +85,16 @@ namespace JetNet
             };
             string jetPayloadJson = JsonConvert.SerializeObject(jetPayload);
 
+            Array.Clear(contentKey, 0, contentKey.Length);
+            Array.Clear(derivedKey, 0, derivedKey.Length);
+            Array.Clear(payloadBytes, 0, payloadBytes.Length);
+            Array.Clear(contentNonce, 0, contentNonce.Length);
+            Array.Clear(cekNonce, 0, cekNonce.Length);
+            Array.Clear(encryptedContent.ciphertext, 0, encryptedContent.ciphertext.Length);
+            Array.Clear(encryptedContent.tag, 0, encryptedContent.tag.Length);
+            Array.Clear(encryptedCek.ciphertext, 0, encryptedCek.ciphertext.Length);
+            Array.Clear(encryptedCek.tag, 0, encryptedCek.tag.Length);
+
             return $"{Base64Url.EncodeString(headerJson)}:{Base64Url.EncodeString(jetPayloadJson)}";
         }
 
