@@ -1,8 +1,22 @@
 ﻿using JetNet;
 using JetNet.Crypto;
 using JetNet.Models;
+using System.Security;
 
-var jet = new Jet("myStrongPassword123!");
+using var securePassword = new SecureString();
+string plainPassword = "myStrongPassword123!";
+try
+{
+    foreach (char c in plainPassword)
+        securePassword.AppendChar(c);
+}
+finally
+{
+    plainPassword = string.Empty;
+    securePassword.MakeReadOnly();
+}
+
+var jet = new Jet(securePassword);
 
 // Data
 var payload = new { user = "Soheil Jashnsaz", role = "admin" };

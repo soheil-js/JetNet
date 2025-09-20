@@ -7,17 +7,18 @@ using JetNet.Models.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
+using System.Security;
 using System.Text;
 
 namespace JetNet
 {
     public sealed class Jet
     {
-        private readonly string _password;
+        private readonly SecureString _password;
 
-        public Jet(string password)
+        public Jet(SecureString password)
         {
-            _password = password;
+            _password = password ?? throw new ArgumentNullException(nameof(password));
         }
 
         public string Encode(object payload, Claims? claims, IKdf kdf, SymmetricAlgorithm symmetric = SymmetricAlgorithm.AES_256_GCM, DateTime? expiration = default, DateTime? notBefore = default)
@@ -29,20 +30,9 @@ namespace JetNet
             string payloadJson = JsonConvert.SerializeObject(payload);
             byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
 
-            // --- Salt & Derived Key ---
+            // --- Salt ---
             byte[] salt = new byte[kdf.MaxSaltSize];
             rng.GetBytes(salt);
-            byte[] derivedKey = kdf.GetBytes(_password, salt, cipher.KeySize);
-
-            // --- Nonce for CEK ---
-            byte[] cekNonce = new byte[cipher.NonceSize];
-            rng.GetBytes(cekNonce);
-
-            // --- Content Key (CEK) & Nonce ---
-            byte[] contentKey = new byte[cipher.KeySize];
-            rng.GetBytes(contentKey);
-            byte[] contentNonce = new byte[cipher.NonceSize];
-            rng.GetBytes(contentNonce);
 
             var now = DateTime.UtcNow;
             var iat = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
@@ -63,9 +53,29 @@ namespace JetNet
             string headerJson = CanonicalizeObject(header);
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerJson);
 
+            // --- Nonce for CEK ---
+            byte[] cekNonce = new byte[cipher.NonceSize];
+            rng.GetBytes(cekNonce);
+
+            // --- Content Key (CEK) & Nonce ---
+            byte[] contentKey = new byte[cipher.KeySize];
+            rng.GetBytes(contentKey);
+            byte[] contentNonce = new byte[cipher.NonceSize];
+            rng.GetBytes(contentNonce);
+
+            // --- Derived Key ---
+            byte[] passwordBytes = SecureStringToBytes(_password);
+            byte[] derivedKey = kdf.GetBytes(passwordBytes, salt, cipher.KeySize);
+            Array.Clear(passwordBytes, 0, passwordBytes.Length);
+
             // --- Encrypt ---
             var encryptedCek = cipher.Encrypt(contentKey, derivedKey, cekNonce, headerBytes);
+            Array.Clear(derivedKey, 0, derivedKey.Length);
+
             var encryptedContent = cipher.Encrypt(payloadBytes, contentKey, contentNonce, headerBytes);
+            Array.Clear(contentKey, 0, contentKey.Length);
+            Array.Clear(payloadBytes, 0, payloadBytes.Length);
+            
 
             // --- Build Payload ---
             Payload jetPayload = new Payload
@@ -84,16 +94,14 @@ namespace JetNet
                 }
             };
             string jetPayloadJson = JsonConvert.SerializeObject(jetPayload);
-
-            Array.Clear(contentKey, 0, contentKey.Length);
-            Array.Clear(derivedKey, 0, derivedKey.Length);
-            Array.Clear(payloadBytes, 0, payloadBytes.Length);
-            Array.Clear(contentNonce, 0, contentNonce.Length);
-            Array.Clear(cekNonce, 0, cekNonce.Length);
             Array.Clear(encryptedContent.ciphertext, 0, encryptedContent.ciphertext.Length);
             Array.Clear(encryptedContent.tag, 0, encryptedContent.tag.Length);
+            Array.Clear(contentNonce, 0, contentNonce.Length);
             Array.Clear(encryptedCek.ciphertext, 0, encryptedCek.ciphertext.Length);
             Array.Clear(encryptedCek.tag, 0, encryptedCek.tag.Length);
+            Array.Clear(cekNonce, 0, cekNonce.Length);
+
+
 
             return $"{Base64Url.EncodeString(headerJson)}:{Base64Url.EncodeString(jetPayloadJson)}";
         }
@@ -151,13 +159,18 @@ namespace JetNet
             }
 
             byte[] keyForCek;
+            byte[] passwordBytes = SecureStringToBytes(_password);
             try
             {
-                keyForCek = kdf.GetBytes(_password, salt, cipher.KeySize);
+                keyForCek = kdf.GetBytes(passwordBytes, salt, cipher.KeySize);
             }
             catch (Exception ex)
             {
                 throw new JetTokenException("Failed to derive key for CEK using KDF.", ex);
+            }
+            finally
+            {
+                Array.Clear(passwordBytes, 0, passwordBytes.Length);
             }
 
             // --- Decode payload ---
@@ -234,6 +247,26 @@ namespace JetNet
             catch (JsonException ex)
             {
                 throw new JetTokenException("Failed to parse decrypted payload JSON.", ex);
+            }
+        }
+
+        private byte[] SecureStringToBytes(SecureString secure)
+        {
+            if (secure == null) throw new ArgumentNullException(nameof(secure));
+
+            IntPtr unmanagedString = IntPtr.Zero;
+            byte[] bytes;
+            try
+            {
+                unmanagedString = System.Runtime.InteropServices.Marshal.SecureStringToGlobalAllocUnicode(secure);
+                int length = secure.Length;
+                bytes = new byte[length * 2];
+                System.Runtime.InteropServices.Marshal.Copy(unmanagedString, bytes, 0, bytes.Length);
+                return bytes;
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
             }
         }
 
