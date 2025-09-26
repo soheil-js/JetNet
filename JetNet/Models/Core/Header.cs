@@ -13,8 +13,8 @@ namespace JetNet.Models.Core
         [JsonProperty("kdf")]
         public IKdfParams Kdf { get; set; }
 
-        [JsonProperty("clm")]
-        public Claims? Claims { get; set; }
+        [JsonProperty("md")]
+        public Dictionary<string, string>? Metadata { get; set; }
 
         [JsonProperty("jti")]
         public Guid Id { get; set; }

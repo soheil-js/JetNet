@@ -1,4 +1,4 @@
-﻿using JetNet.Crypto.Base64;
+﻿using JetNet.Crypto.Base;
 using JetNet.Models;
 using JetNet.Models.Params;
 using NSec.Cryptography;

@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace JetNet.Crypto.Base64
+namespace JetNet.Crypto.Base
 {
     internal static class Base64Url
     {

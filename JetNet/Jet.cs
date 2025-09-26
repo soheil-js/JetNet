@@ -1,5 +1,5 @@
 ﻿using JetNet.Crypto;
-using JetNet.Crypto.Base64;
+using JetNet.Crypto.Base;
 using JetNet.Crypto.Mapper;
 using JetNet.Exceptions;
 using JetNet.Models;
@@ -21,14 +21,10 @@ namespace JetNet
             _password = password ?? throw new ArgumentNullException(nameof(password));
         }
 
-        public string Encode(object payload, Claims? claims, IKdf kdf, SymmetricAlgorithm symmetric = SymmetricAlgorithm.AES_256_GCM, DateTime? expiration = default, DateTime? notBefore = default)
+        public string Encode(object payload, IKdf kdf, SymmetricAlgorithm symmetric = SymmetricAlgorithm.AES_256_GCM, DateTime? expiration = default, DateTime? notBefore = default, Dictionary<string, string>? metadata = default)
         {
             using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
             ICipher cipher = symmetric.ToCipher();
-
-            // --- Serialize payload ---
-            string payloadJson = JsonConvert.SerializeObject(payload);
-            byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
 
             // --- Salt ---
             byte[] salt = new byte[kdf.MaxSaltSize];
@@ -44,12 +40,20 @@ namespace JetNet
             {
                 Symmetric = symmetric.SymmetricToString(),
                 Kdf = kdf.GetParams(salt),
-                Id = Guid.NewGuid(),
-                Claims = claims,
+                Id = Guid.CreateVersion7(),
                 IssuedAt = DateTime.Parse(iat, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
                 NotBefore = DateTime.Parse(nbf, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
                 Expiration = DateTime.Parse(exp, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal)
             };
+            if (metadata != null)
+            {
+                header.Metadata = new Dictionary<string, string>();
+                foreach (var kvp in metadata)
+                {
+                    header.Metadata[kvp.Key] = kvp.Value;
+                }
+            }
+
             string headerJson = CanonicalizeObject(header);
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerJson);
 
@@ -72,10 +76,15 @@ namespace JetNet
             var encryptedCek = cipher.Encrypt(contentKey, derivedKey, cekNonce, headerBytes);
             Array.Clear(derivedKey, 0, derivedKey.Length);
 
+            // --- Serialize payload ---
+            string payloadJson = JsonConvert.SerializeObject(payload);
+            byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
+
             var encryptedContent = cipher.Encrypt(payloadBytes, contentKey, contentNonce, headerBytes);
             Array.Clear(contentKey, 0, contentKey.Length);
             Array.Clear(payloadBytes, 0, payloadBytes.Length);
-            
+            payloadJson = string.Empty;
+            Array.Clear(headerBytes, 0, headerBytes.Length);
 
             // --- Build Payload ---
             Payload jetPayload = new Payload
@@ -101,16 +110,22 @@ namespace JetNet
             Array.Clear(encryptedCek.tag, 0, encryptedCek.tag.Length);
             Array.Clear(cekNonce, 0, cekNonce.Length);
 
-
-
-            return $"{Base64Url.EncodeString(headerJson)}:{Base64Url.EncodeString(jetPayloadJson)}";
+            try
+            {
+                return $"{Base64Url.EncodeString(headerJson)}.{Base64Url.EncodeString(jetPayloadJson)}";
+            }
+            finally
+            {
+                headerJson = string.Empty;
+                jetPayloadJson = string.Empty;
+            }
         }
 
-        public T Decode<T>(string token, Func<Claims, bool>? validateClaims = default, Func<string, bool>? validateTokenId = default)
+        public T Decode<T>(string token, Func<Dictionary<string, string>, bool>? validateMetadata = default, Func<string, bool>? validateTokenId = default)
         {
-            string[] parts = token.Split(':');
+            string[] parts = token.Split('.');
             if (parts.Length != 2)
-                throw new JetTokenException("Invalid JET token format: token must contain exactly one ':' separator.");
+                throw new JetTokenException("Invalid JET token format: token must contain exactly one '.' separator.");
 
             // --- Decode header ---
             Header header;
@@ -224,10 +239,10 @@ namespace JetNet
                 throw new JetTokenException($"Token has expired. Expiration: {header.Expiration:u}, Now: {now:u}");
 
             // --- Validate claims ---
-            if (validateClaims != null && header.Claims != null)
+            if (validateMetadata != null && header.Metadata != null)
             {
-                if (!validateClaims(header.Claims))
-                    throw new JetTokenException("Claims validation failed: token is not authorized or contains invalid claims.");
+                if (!validateMetadata(header.Metadata))
+                    throw new JetTokenException("Metadata validation failed: token is not authorized or contains invalid metadata.");
             }
 
             // --- Validate token id ---

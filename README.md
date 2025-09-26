@@ -4,27 +4,34 @@
 
 ## 🌍 Why JET?
 
-JWT is widely adopted, but it has several limitations and pitfalls when it comes to real-world security:
+JWT is widely adopted, but it has several real-world security pitfalls:
 
-- ❌ **Claims are not encrypted by default** — sensitive information is only Base64-encoded, making it trivially readable.  
-- ❌ **Vulnerable to algorithm attacks** — JWT security heavily depends on choosing the right algorithm and not misconfiguring it (e.g., `none` or weak HMAC).  
-- ❌ **Complexity with JWE/JWS** — combining JWT with JWE/JWS to add encryption and signature increases implementation complexity, and even small mistakes can break security.  
-- ❌ **Replay and tampering issues** — JWT does not enforce replay protection; additional infrastructure is needed to track token usage.  
-- ❌ **Key management is tricky** — rotating keys and securely sharing symmetric secrets is error-prone.
+- ❌ **Claims not encrypted** — the JWT payload is only Base64URL-encoded, so anyone can read sensitive information.  
+- ❌ **Algorithm confusion risks** — security depends on strict algorithm choices; misconfigurations (e.g., `none`, weak HMAC) break guarantees.  
+- ❌ **Extra complexity for encryption** — adding JWE/JWS layers to gain confidentiality increases code and the chance of mistakes.  
+- ❌ **No built-in replay defense** — preventing token reuse requires extra server-side tracking.  
+- ❌ **Key-management burden** — rotating keys and sharing symmetric secrets safely is error-prone.
 
-**JET solves these problems with a modern, secure design:**
+**JET addresses these problems with a modern, secure design:**
 
-- ✅ **Payload encryption by default** — all sensitive data is encrypted with strong AEAD ciphers (AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305).  
-- ✅ **Header integrity and tamper protection** — the header is included as authenticated additional data (AAD), so any modification breaks decryption.  
-- ✅ **Memory-hard, per-token KDF** — Argon2id (or scrypt) derives a unique key for each token with a random salt, mitigating brute-force attacks on passwords.  
-- ✅ **Built-in timing and replay protection** — `issuedAt`, `notBefore`, `expiration` and optional `id` validation prevent token reuse and enforce strict token lifetimes.  
-- ✅ **Flexible validation hooks** — easy delegates allow claims validation and server-side token-ID revocation.  
-- ✅ **Simple, extensible format** — two-part structure (`header:payload`) is easy to parse, inspect, and extend with custom fields.  
-- ✅ **Resistant to common JWT attacks** — such as none-algorithm abuse, key confusion, and misconfigured signatures.  
-- ✅ **No dependency on external JWE/JWS libraries** — reduces complexity, surface area for bugs, and attack vectors.  
-- ✅ **Random nonces per token** — ensures AEAD uniqueness and semantic security even for identical payloads.
+- ✅ **Encrypted payload by default** — all confidential data is protected with strong AEAD ciphers  
+  *(AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305)*.  
+- ✅ **Header integrity with explicit visibility notice** — the header is **authenticated but not encrypted**.  
+  Fields like `alg`, `typ`, and optional public `clm` claims remain visible and **must never contain secrets**.  
+- ✅ **Per-token, memory-hard key derivation** — Argon2id (or scrypt) derives a unique key with a random salt  
+  for every token, slowing brute-force attacks.  
+- ✅ **Built-in lifetime & replay protection** — `issuedAt`, `notBefore`, `expiration`, and optional `id` checks  
+  prevent reuse and enforce strict validity windows.  
+- ✅ **Flexible validation hooks** — easy delegates for custom claim checks and server-side revocation of token IDs.  
+- ✅ **Simple, extensible format** — a concise two-part structure (`header:payload`) is easy to parse and extend  
+  with custom fields.  
+- ✅ **Resistant to classic JWT flaws** — avoids “none” algorithm abuse, key-confusion, and signature-misuse issues.  
+- ✅ **Random nonces per token** — guarantees AEAD uniqueness and semantic security even for identical payloads.  
+- ✅ **No external JWE/JWS dependency** — reducing complexity and attack surface.
 
-**In short:** JET is designed to be secure by default, minimizes developer mistakes, and provides a clear, modern approach to token encryption and validation that addresses real-world risks where JWT and JWE can fall short.
+**In short:**  
+JET is **secure by default**, minimizes developer mistakes, and provides clear guidance:  
+> *Confidential data goes only in the encrypted payload; headers stay public but tamper-proof.*
 
 
 
@@ -44,34 +51,29 @@ JWT is widely adopted, but it has several limitations and pitfalls when it comes
 A JET token is two Base64Url parts separated by `:`:
 
 ```
-<header_base64url> : <payload_base64url>
+<header_base64url> . <payload_base64url>
 ```
 
 ### Header (JSON, Base64Url-encoded)
 Contains algorithm and KDF parameters and **salt** (salt is public):
 ```json
 {
-  "symmetric": "AES-256-GCM",
-  "kdf": {
-    "type": "Argon2id",
-    "memory": 65536,
-    "iterations": 3,
-    "parallelism": 1,
-    "salt": "..." 
-  },
-  "id": "c8ba40ce-d5d4-4b95-966a-f701d33b27d9",
-  "claims": {
-    "issuer": "...",  
-    "subject": "",
-    "audience": [
-      "...",
-      "..."
-    ]
-  },
-  "issuedAt": "...",
-  "notBefore": "...",
-  "expiration": "...",
-  "type": "JET"
+    "enc": "AES-256-GCM",
+    "kdf": {
+        "t": "Argon2id",
+        "m": 65536,
+        "i": 3,
+        "p": 1,
+        "s": "gIVCGNiKIFGBViYGs1H-qQ"
+    },
+    "md": {
+        "app": "my-application"
+    },
+    "jti": "01998774-9242-7b96-8aa9-51d3e39af9cb",
+    "iat": "2025-09-26T19:16:27.833Z",
+    "nbf": "2025-09-26T19:16:27.833Z",
+    "exp": "2025-09-27T19:16:27.82Z",
+    "typ": "JET"
 }
 ```
 
@@ -79,16 +81,16 @@ Contains algorithm and KDF parameters and **salt** (salt is public):
 Contains two AEAD outputs: the encrypted content and the encrypted CEK (Content Encryption Key):
 ```json
 {
-  "content": {
-    "ciphertext": "...",
-    "tag": "...",
-    "nonce": "..." 
-  },
-  "cek": {
-    "ciphertext": "...",
-    "tag": "...",
-    "nonce": "..." 
-  }
+    "ct": {
+        "c": "iT1zBdyEEK1hW6yCxP2-ebL-9wU826Cdyyuxs-rFY2MBUO8cam1ohMKsHpf1P0X8SCa90kyAZUNl4GtzrR-zgyPQG8KsBPQp7MWGBgCCTWS2Erjl-NZXFlWJD3YiKcQvX3PTocVlwbKhCdUkME2x3pmCNdraIXo8WhgRZwJLaEXHFjyrqjh41MjvvcbZmaJHxJ24",
+        "t": "I5K5a003gjF8VeLsMdO7fA",
+        "n": "oleKByrG0AwU2ot_"
+    },
+    "k": {
+        "c": "ys1wdmy0Ttl5oFSd_JtMWkR7e9c3g3bSbJxAbl84enQ",
+        "t": "nRiqIk60vK2D6twJxQiApQ",
+        "n": "05FYx3BrwHHPvWJo"
+    }
 }
 ```
 
@@ -104,10 +106,10 @@ Contains two AEAD outputs: the encrypted content and the encrypted CEK (Content 
 4. Build canonical header JSON and use it as AAD.  
 5. Encrypt CEK with derived key (produces CEK ciphertext + tag).  
 6. Encrypt payload with CEK (produces ciphertext + tag).  
-7. Package `payload` JSON carrying both CEK and content AEAD outputs, Base64Url-encode header and payload, join with `:`.
+7. Package `payload` JSON carrying both CEK and content AEAD outputs, Base64Url-encode header and payload, join with `.`.
 
 **Decode (simplified):**
-1. Split token by `:` and Base64Url-decode header and payload.  
+1. Split token by `.` and Base64Url-decode header and payload.  
 2. Parse header, reconstruct header JSON used as AAD (use the exact decoded header text as AAD).  
 3. Recreate KDF using header params and derive key from password + salt.  
 4. Decrypt CEK (with derived key, CEK nonce and tag) using header as AAD.  
@@ -118,15 +120,15 @@ Contains two AEAD outputs: the encrypted content and the encrypted CEK (Content 
 
 ## 🛡️ Replay protection
 
-JET uses a unique `id` (GUID) in each token header as a token identifier.  
+JET uses a unique `jti` (GUID) in each token header as a token identifier.  
 While AEAD nonces ensure semantic security, they **do not prevent replay attacks by themselves**.  
 
 To protect against token replay:
 
-- Validate the `id` (token identifier) server-side or in your application, e.g., keep a short-lived cache of used IDs.  
-- Standard claims like `expiration` and `notBefore`/`issuedAt` (not-before/issued-at) should also be verified to limit the token's valid window.  
+- Validate the `jti` (token identifier) server-side or in your application, e.g., keep a short-lived cache of used IDs.  
+- Standard claims like `exp` and `nbf`/`iat` (not-before/issued-at) should also be verified to limit the token's valid window.  
 
-This implementation provides `header.id` and hooks via `validateTokenId` for application-level replay protection. Replay mitigation is enforced by the consuming application rather than the JET library itself.
+This implementation provides `header.jti` and hooks via `validateTokenId` for application-level replay protection. Replay mitigation is enforced by the consuming application rather than the JET library itself.
 
 
 ## 🧪 Example (C#)
@@ -134,23 +136,48 @@ This implementation provides `header.id` and hooks via `validateTokenId` for app
 ```csharp
 using JetNet;
 using JetNet.Crypto;
-using JetNet.Models;
+using System.Security;
 
-var jet = new Jet("myStrongPassword123!");
-var payload = new { user = "Soheil Jashnsaz", role = "admin" };
+using var securePassword = new SecureString();
+string plainPassword = "G7$wR9!vZp2#qK8d";
+try
+{
+    foreach (char c in plainPassword)
+        securePassword.AppendChar(c);
+}
+finally
+{
+    plainPassword = string.Empty;
+    securePassword.MakeReadOnly();
+}
+
+var jet = new Jet(securePassword);
+
+// Data
+var payload = new
+{
+    user = "Soheil Jashnsaz",
+    role = "admin",
+    claims = new
+    {
+        iss = "mycompany.com",
+        sub = "user-authentication",
+        aud = new string[] { "app-web", "app-mobile", "api-service" }
+    }
+};
+
+// Metadata
+Dictionary<string, string> keyValuePairs = new Dictionary<string, string>();
+keyValuePairs.Add("app", "my-application");
 
 // Choose Argon2id + AES-256-GCM
 var kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
-Claims claims = new Claims()
-{
-    Issuer = "mycompany.com",
-    Subject = "user-authentication",
-};
-claims.Audience.AddRange("app-web", "app-mobile", "api-service");
-string token = jet.Encode(payload, claims, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddSeconds(10));
+
+// Encode
+string token = jet.Encode(payload, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddHours(24), metadata: keyValuePairs);
 
 // Decode
-var decoded = jet.Decode<dynamic>(token, ValidateClaims, ValidateTokenID);
+var decoded = jet.Decode<dynamic>(token, ValidateMetadata, ValidateTokenID);
 
 Console.WriteLine(token); // Encoded token
 Console.WriteLine(); // New line
@@ -163,7 +190,7 @@ Console.WriteLine("Press any key to exit...");
 Console.ReadKey();
 
 // Validate claims
-bool ValidateClaims(Claims claims)
+bool ValidateMetadata(Dictionary<string, string> metadata)
 {
     return true;
 }
@@ -190,7 +217,7 @@ Provided round-trip unit tests cover combinations:
 ## 🚀 Example Token
 
 ```
-eyJjbGFpbXMiOnsiaXNzdWVyIjoibXljb21wYW55LmNvbSIsInN1YmplY3QiOiJ1c2VyLWF1dGhlbnRpY2F0aW9uIiwiYXVkaWVuY2UiOlsiYXBwLXdlYiIsImFwcC1tb2JpbGUiLCJhcGktc2VydmljZSJdfSwiZXhwaXJhdGlvbiI6IjIwMjUtMDktMTRUMjM6MTE6MjYuODYxNzQ2MloiLCJpZCI6ImM4YmE0MGNlLWQ1ZDQtNGI5NS05NjZhLWY3MDFkMzNiMjdkOSIsImlzc3VlZEF0IjoiMjAyNS0wOS0xNFQyMzoxMToxNy4xMjYyMDA1WiIsImtkZiI6eyJ0eXBlIjoiQXJnb24yaWQiLCJtZW1vcnkiOjY1NTM2LCJpdGVyYXRpb25zIjozLCJwYXJhbGxlbGlzbSI6MSwic2FsdCI6IlNkb1NuSWdBc0pzUExxMGJOX2IxVGcifSwibm90QmVmb3JlIjoiMjAyNS0wOS0xNFQyMzoxMToxNy4xMjYyMDA1WiIsInN5bW1ldHJpYyI6IkFFUy0yNTYtR0NNIiwidHlwZSI6IkpFVCJ9:eyJjb250ZW50Ijp7ImNpcGhlcnRleHQiOiI3cEEtTDhNUmp1elVVMl9DSGR6TzZYbExuMS1rWDExeUdoNTdsWWZ4Mlg0eVA0MWVUUTRhX1ZnIiwidGFnIjoiSEZsTGhjbGNkdXpyVko0Y0d4dkV2USIsIm5vbmNlIjoickFyd3JWTDN2ZGtXclFwYyJ9LCJjZWsiOnsiY2lwaGVydGV4dCI6IkZhc0ZDN19JYW1lcWh6R1J4Yk90T1dHN2RUOFV1M1Azbl94TTRuZU5kX2ciLCJ0YWciOiJ3eFAxUksxeC1HekpwOWZTckYybGxRIiwibm9uY2UiOiJzankyWUp5elJYUTBXY0txIn19
+eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6IjIwMjUtMDktMjdUMTk6MTY6MjcuODJaIiwiaWF0IjoiMjAyNS0wOS0yNlQxOToxNjoyNy44MzNaIiwianRpIjoiMDE5OTg3NzQtOTI0Mi03Yjk2LThhYTktNTFkM2UzOWFmOWNiIiwia2RmIjp7InQiOiJBcmdvbjJpZCIsIm0iOjY1NTM2LCJpIjozLCJwIjoxLCJzIjoiZ0lWQ0dOaUtJRkdCVmlZR3MxSC1xUSJ9LCJtZCI6eyJhcHAiOiJteS1hcHBsaWNhdGlvbiJ9LCJuYmYiOiIyMDI1LTA5LTI2VDE5OjE2OjI3LjgzM1oiLCJ0eXAiOiJKRVQifQ.eyJjdCI6eyJjIjoiaVQxekJkeUVFSzFoVzZ5Q3hQMi1lYkwtOXdVODI2Q2R5eXV4cy1yRlkyTUJVTzhjYW0xb2hNS3NIcGYxUDBYOFNDYTkwa3lBWlVObDRHdHpyUi16Z3lQUUc4S3NCUFFwN01XR0JnQ0NUV1MyRXJqbC1OWlhGbFdKRDNZaUtjUXZYM1BUb2NWbHdiS2hDZFVrTUUyeDNwbUNOZHJhSVhvOFdoZ1Jad0pMYUVYSEZqeXJxamg0MU1qdnZjYlptYUpIeEoyNCIsInQiOiJJNUs1YTAwM2dqRjhWZUxzTWRPN2ZBIiwibiI6Im9sZUtCeXJHMEF3VTJvdF8ifSwiayI6eyJjIjoieXMxd2RteTBUdGw1b0ZTZF9KdE1Xa1I3ZTljM2czYlNiSnhBYmw4NGVuUSIsInQiOiJuUmlxSWs2MHZLMkQ2dHdKeFFpQXBRIiwibiI6IjA1Rll4M0Jyd0hIUHZXSm8ifX0
 ```
 
 Decoded Payload:

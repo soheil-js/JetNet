@@ -1,10 +1,9 @@
 ﻿using JetNet;
 using JetNet.Crypto;
-using JetNet.Models;
 using System.Security;
 
 using var securePassword = new SecureString();
-string plainPassword = "myStrongPassword123!";
+string plainPassword = "G7$wR9!vZp2#qK8d";
 try
 {
     foreach (char c in plainPassword)
@@ -19,22 +18,30 @@ finally
 var jet = new Jet(securePassword);
 
 // Data
-var payload = new { user = "Soheil Jashnsaz", role = "admin" };
-Claims claims = new Claims()
+var payload = new
 {
-    Issuer = "mycompany.com",
-    Subject = "user-authentication",
+    user = "Soheil Jashnsaz",
+    role = "admin",
+    claims = new
+    {
+        iss = "mycompany.com",
+        sub = "user-authentication",
+        aud = new string[] { "app-web", "app-mobile", "api-service" }
+    }
 };
-claims.Audience.AddRange("app-web", "app-mobile", "api-service");
+
+// Metadata
+Dictionary<string, string> keyValuePairs = new Dictionary<string, string>();
+keyValuePairs.Add("app", "my-application");
 
 // Choose Argon2id + AES-256-GCM
 var kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
 
 // Encode
-string token = jet.Encode(payload, claims, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddHours(24));
+string token = jet.Encode(payload, kdf, SymmetricAlgorithm.AES_256_GCM, expiration: DateTime.UtcNow.AddHours(24), metadata: keyValuePairs);
 
 // Decode
-var decoded = jet.Decode<dynamic>(token, ValidateClaims, ValidateTokenID);
+var decoded = jet.Decode<dynamic>(token, ValidateMetadata, ValidateTokenID);
 
 Console.WriteLine(token); // Encoded token
 Console.WriteLine(); // New line
@@ -47,7 +54,7 @@ Console.WriteLine("Press any key to exit...");
 Console.ReadKey();
 
 // Validate claims
-bool ValidateClaims(Claims claims)
+bool ValidateMetadata(Dictionary<string, string> metadata)
 {
     return true;
 }
