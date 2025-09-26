@@ -48,7 +48,7 @@ JET is **secure by default**, minimizes developer mistakes, and provides clear g
 
 ## 📖 Token Structure
 
-A JET token is two Base64Url parts separated by `:`:
+A JET token is two Base64Url parts separated by `.`:
 
 ```
 <header_base64url> . <payload_base64url>
@@ -224,8 +224,18 @@ Decoded Payload:
 ```json
 {
   "user": "Soheil Jashnsaz",
-  "role": "admin"
+  "role": "admin",
+  "claims": {
+    "iss": "mycompany.com",
+    "sub": "user-authentication",
+    "aud": [
+      "app-web",
+      "app-mobile",
+      "api-service"
+    ]
+  }
 }
+
 ```
 
 ## 🔑 Choosing a Strong Master Password
