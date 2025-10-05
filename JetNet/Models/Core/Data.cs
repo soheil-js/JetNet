@@ -12,9 +12,6 @@ namespace JetNet.Models.Core
         [JsonProperty("c")]
         public string ciphertext { get; set; }
 
-        [JsonProperty("t")]
-        public string tag { get; set; }
-
         [JsonProperty("n")]
         public string nonce { get; set; }
     }

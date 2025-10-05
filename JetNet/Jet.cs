@@ -2,13 +2,13 @@
 using JetNet.Crypto.Base;
 using JetNet.Crypto.Mapper;
 using JetNet.Exceptions;
-using JetNet.Models;
 using JetNet.Models.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
 using System.Security;
 using System.Text;
+using SysCrypto = System.Security.Cryptography;
 
 namespace JetNet
 {
@@ -70,45 +70,44 @@ namespace JetNet
             // --- Derived Key ---
             byte[] passwordBytes = SecureStringToBytes(_password);
             byte[] derivedKey = kdf.GetBytes(passwordBytes, salt, cipher.KeySize);
-            Array.Clear(passwordBytes, 0, passwordBytes.Length);
+            SysCrypto.CryptographicOperations.ZeroMemory(passwordBytes);
 
             // --- Encrypt ---
-            var encryptedCek = cipher.Encrypt(contentKey, derivedKey, cekNonce, headerBytes);
-            Array.Clear(derivedKey, 0, derivedKey.Length);
+            Span<byte> encryptedCek = stackalloc byte[cipher.TagSize + contentKey.Length];
+            cipher.Encrypt(contentKey, derivedKey, cekNonce, headerBytes, encryptedCek);
+            SysCrypto.CryptographicOperations.ZeroMemory(derivedKey);
 
             // --- Serialize payload ---
             string payloadJson = JsonConvert.SerializeObject(payload);
             byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
 
-            var encryptedContent = cipher.Encrypt(payloadBytes, contentKey, contentNonce, headerBytes);
-            Array.Clear(contentKey, 0, contentKey.Length);
-            Array.Clear(payloadBytes, 0, payloadBytes.Length);
+            Span<byte> encryptedContent = stackalloc byte[cipher.TagSize + payloadBytes.Length];
+            cipher.Encrypt(payloadBytes, contentKey, contentNonce, headerBytes, encryptedContent);
+            SysCrypto.CryptographicOperations.ZeroMemory(contentKey);
+            SysCrypto.CryptographicOperations.ZeroMemory(payloadBytes);
             payloadJson = string.Empty;
-            Array.Clear(headerBytes, 0, headerBytes.Length);
+            SysCrypto.CryptographicOperations.ZeroMemory(headerBytes);
 
             // --- Build Payload ---
             Payload jetPayload = new Payload
             {
                 Content = new Data()
                 {
-                    ciphertext = Base64Url.Encode(encryptedContent.ciphertext),
-                    tag = Base64Url.Encode(encryptedContent.tag),
+                    ciphertext = Base64Url.Encode(encryptedContent),
                     nonce = Base64Url.Encode(contentNonce)
                 },
                 Cek = new Data()
                 {
-                    ciphertext = Base64Url.Encode(encryptedCek.ciphertext),
-                    tag = Base64Url.Encode(encryptedCek.tag),
+                    ciphertext = Base64Url.Encode(encryptedCek),
                     nonce = Base64Url.Encode(cekNonce)
                 }
             };
             string jetPayloadJson = JsonConvert.SerializeObject(jetPayload);
-            Array.Clear(encryptedContent.ciphertext, 0, encryptedContent.ciphertext.Length);
-            Array.Clear(encryptedContent.tag, 0, encryptedContent.tag.Length);
-            Array.Clear(contentNonce, 0, contentNonce.Length);
-            Array.Clear(encryptedCek.ciphertext, 0, encryptedCek.ciphertext.Length);
-            Array.Clear(encryptedCek.tag, 0, encryptedCek.tag.Length);
-            Array.Clear(cekNonce, 0, cekNonce.Length);
+            SysCrypto.CryptographicOperations.ZeroMemory(encryptedContent);
+            SysCrypto.CryptographicOperations.ZeroMemory(contentNonce);
+            SysCrypto.CryptographicOperations.ZeroMemory(encryptedCek);
+            SysCrypto.CryptographicOperations.ZeroMemory(encryptedCek);
+            SysCrypto.CryptographicOperations.ZeroMemory(cekNonce);
 
             try
             {
@@ -205,31 +204,29 @@ namespace JetNet
             }
 
             // --- Decrypt CEK & content ---
+            byte[] headerBytes = Encoding.UTF8.GetBytes(CanonicalizeObject(header));
+
             byte[] keyForContent;
             byte[] decryptedBytes;
             try
             {
-                byte[] headerBytes = Encoding.UTF8.GetBytes(CanonicalizeObject(header));
-                keyForContent = cipher.Decrypt(
-                    Base64Url.Decode(payload.Cek.ciphertext),
-                    Base64Url.Decode(payload.Cek.tag),
-                    keyForCek,
-                    Base64Url.Decode(payload.Cek.nonce),
-                    headerBytes
-                ) ?? throw new JetTokenException("Failed to decrypt CEK.");
+                byte[] cekCiphertext = Base64Url.Decode(payload.Cek.ciphertext);
+                keyForContent = new byte[cekCiphertext.Length - cipher.TagSize];
+                bool isDecryptedCek = cipher.Decrypt(cekCiphertext, keyForCek, Base64Url.Decode(payload.Cek.nonce), headerBytes, keyForContent);
+                if (!isDecryptedCek)
+                    throw new JetTokenException("Failed to decrypt CEK.");
 
-                decryptedBytes = cipher.Decrypt(
-                    Base64Url.Decode(payload.Content.ciphertext),
-                    Base64Url.Decode(payload.Content.tag),
-                    keyForContent,
-                    Base64Url.Decode(payload.Content.nonce),
-                    headerBytes
-                ) ?? throw new JetTokenException("Failed to decrypt content.");
+                byte[] contentCiphertext = Base64Url.Decode(payload.Content.ciphertext);
+                decryptedBytes = new byte[contentCiphertext.Length - cipher.TagSize];
+                bool isDecryptedContent = cipher.Decrypt(contentCiphertext, keyForContent, Base64Url.Decode(payload.Content.nonce), headerBytes, decryptedBytes);
+                if (!isDecryptedContent)
+                    throw new JetTokenException("Failed to decrypt content.");
             }
             catch (Exception ex)
             {
                 throw new JetTokenException("Decryption failed for CEK or payload.", ex);
             }
+
 
             // --- Validate timing ---
             var now = DateTime.UtcNow;

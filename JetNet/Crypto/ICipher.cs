@@ -7,7 +7,7 @@
         public int TagSize { get; }
         
 
-        public (byte[] ciphertext, byte[] tag) Encrypt(byte[] plaintext, byte[] key, byte[] nonce, byte[]? associatedData = default);
-        public byte[]? Decrypt(byte[] ciphertext, byte[] tag, byte[] key, byte[] nonce, byte[]? associatedData = default);
+        public bool Encrypt(ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> associatedData, Span<byte> ciphertext);
+        public bool Decrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> associatedData, Span<byte> plaintext);
     }
 }
