@@ -24,17 +24,17 @@ namespace JetNet.Crypto.Kdf
             _argon2id = PasswordBasedKeyDerivationAlgorithm.Argon2id(_parameters);
         }
 
-        public byte[] GetBytes(string password, ReadOnlySpan<byte> salt, int count)
+        public void GetBytes(string password, ReadOnlySpan<byte> salt, Span<byte> bytes)
         {
-            return _argon2id.DeriveBytes(password, salt, count);
+            _argon2id.DeriveBytes(password, salt, bytes);
         }
 
-        public byte[] GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, int count)
+        public void GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Span<byte> bytes)
         {
-            return _argon2id.DeriveBytes(password, salt, count);
+            _argon2id.DeriveBytes(password, salt, bytes);
         }
 
-        public IKdfParams GetParams(byte[] salt)
+        public IKdfParams GetParams(Span<byte> salt)
         {
             return new Argon2Params
             {

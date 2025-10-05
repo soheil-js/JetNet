@@ -24,17 +24,17 @@ namespace JetNet.Crypto.Kdf
             _scrypt = PasswordBasedKeyDerivationAlgorithm.Scrypt(_parameters);
         }
 
-        public byte[] GetBytes(string password, ReadOnlySpan<byte> salt, int count)
+        public void GetBytes(string password, ReadOnlySpan<byte> salt, Span<byte> bytes)
         {
-            return _scrypt.DeriveBytes(password, salt, count);
+            _scrypt.DeriveBytes(password, salt, bytes);
         }
 
-        public byte[] GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, int count)
+        public void GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Span<byte> bytes)
         {
-            return _scrypt.DeriveBytes(password, salt, count);
+            _scrypt.DeriveBytes(password, salt, bytes);
         }
 
-        public IKdfParams GetParams(byte[] salt)
+        public IKdfParams GetParams(Span<byte> salt)
         {
             return new ScryptParams
             {

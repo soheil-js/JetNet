@@ -9,8 +9,8 @@ namespace JetNet.Crypto
         int MaxSaltSize { get; }
         int MinSaltSize { get; }
 
-        byte[] GetBytes(string password, ReadOnlySpan<byte> salt, int count);
-        byte[] GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, int count);
-        IKdfParams GetParams(byte[] salt);
+        void GetBytes(string password, ReadOnlySpan<byte> salt, Span<byte> bytes);
+        void GetBytes(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Span<byte> bytes);
+        IKdfParams GetParams(Span<byte> salt);
     }
 }
