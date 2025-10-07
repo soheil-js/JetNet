@@ -6,23 +6,45 @@ using JetNet.Models.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
-using System.Security;
 using System.Text;
 using SysCrypto = System.Security.Cryptography;
 
 namespace JetNet
 {
-    public sealed class Jet
+    public sealed class Jet : IDisposable
     {
-        private readonly SecureString _password;
+        private byte[] _password;
+        private bool _disposed = false;
 
-        public Jet(SecureString password)
+        public Jet(ReadOnlySpan<byte> password)
         {
-            _password = password ?? throw new ArgumentNullException(nameof(password));
+            if (password.Length == 0)
+                throw new ArgumentException("Password cannot be empty.", nameof(password));
+
+            _password = password.ToArray();
+        }
+
+        public Jet(string password)
+        {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be null or empty.", nameof(password));
+
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+            try
+            {
+                _password = new byte[passwordBytes.Length];
+                Array.Copy(passwordBytes, _password, passwordBytes.Length);
+            }
+            finally
+            {
+                SysCrypto.CryptographicOperations.ZeroMemory(passwordBytes);
+            }
         }
 
         public string Encode(object payload, IKdf kdf, SymmetricAlgorithm symmetric = SymmetricAlgorithm.AES_256_GCM, DateTime? expiration = default, DateTime? notBefore = default, Dictionary<string, string>? metadata = default)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             using var rng = SysCrypto.RandomNumberGenerator.Create();
             ICipher cipher = symmetric.ToCipher();
 
@@ -68,10 +90,8 @@ namespace JetNet
             rng.GetBytes(contentNonce);
 
             // --- Derived Key ---
-            Span<byte> passwordBytes = SecureStringToBytes(_password);
             Span<byte> derivedKey = stackalloc byte[cipher.KeySize];
-            kdf.GetBytes(passwordBytes, salt, derivedKey);
-            SysCrypto.CryptographicOperations.ZeroMemory(passwordBytes);
+            kdf.GetBytes(_password, salt, derivedKey);
 
             // --- Encrypt ---
             Span<byte> encryptedCek = new byte[cipher.TagSize + contentKey.Length];
@@ -114,6 +134,8 @@ namespace JetNet
 
         public T Decode<T>(string token, Func<Dictionary<string, string>, bool>? validateMetadata = default, Func<string, bool>? validateTokenId = default)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             string[] parts = token.Split('.');
             if (parts.Length != 2)
                 throw new JetTokenException("Invalid JET token format: token must contain exactly one '.' separator.");
@@ -185,10 +207,9 @@ namespace JetNet
             }
 
             Span<byte> keyForCek = stackalloc byte[cipher.KeySize];
-            Span<byte> passwordBytes = SecureStringToBytes(_password);
             try
             {
-                kdf.GetBytes(passwordBytes, salt, keyForCek);
+                kdf.GetBytes(_password, salt, keyForCek);
             }
             catch (Exception ex)
             {
@@ -196,7 +217,6 @@ namespace JetNet
             }
             finally
             {
-                SysCrypto.CryptographicOperations.ZeroMemory(passwordBytes);
                 SysCrypto.CryptographicOperations.ZeroMemory(salt);
             }
 
@@ -267,26 +287,6 @@ namespace JetNet
             }
         }
 
-        private byte[] SecureStringToBytes(SecureString secure)
-        {
-            if (secure == null) throw new ArgumentNullException(nameof(secure));
-
-            IntPtr unmanagedString = IntPtr.Zero;
-            byte[] bytes;
-            try
-            {
-                unmanagedString = System.Runtime.InteropServices.Marshal.SecureStringToGlobalAllocUnicode(secure);
-                int length = secure.Length;
-                bytes = new byte[length * 2];
-                System.Runtime.InteropServices.Marshal.Copy(unmanagedString, bytes, 0, bytes.Length);
-                return bytes;
-            }
-            finally
-            {
-                System.Runtime.InteropServices.Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
-            }
-        }
-
         private string CanonicalizeObject(object obj)
         {
             if (obj == null)
@@ -308,6 +308,31 @@ namespace JetNet
             {
                 throw new JetTokenException("Failed to canonicalize object for JET header or AAD.", ex);
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (_password != null)
+            {
+                SysCrypto.CryptographicOperations.ZeroMemory(_password);
+                _password = null!;
+            }
+            
+            _disposed = true;
+        }
+
+        ~Jet()
+        {
+            Dispose(false);
         }
     }
 }
