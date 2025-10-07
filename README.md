@@ -60,7 +60,7 @@ Modern token security faces critical challenges with existing standards:
 A JET token is two Base64Url parts separated by `.`:
 
 ```
-<header_base64url> . <payload_base64url>
+<header_base64url>.<payload_base64url>
 ```
 
 ### Header (JSON, Base64Url-encoded)
@@ -68,20 +68,20 @@ Contains algorithm parameters, KDF configuration, and public metadata:
 ```json
 {
     "enc": "AES-256-GCM",
-    "kdf": {
+	"kdf": {
         "t": "Argon2id",
         "m": 65536,
         "i": 3,
         "p": 1,
-        "s": "gIVCGNiKIFGBViYGs1H-qQ"
+        "s": "9n3lXu6VBFG8u7h-gppDlw"
     },
-    "md": {
+	"md": {
         "app": "my-application"
     },
-    "jti": "01998774-9242-7b96-8aa9-51d3e39af9cb",
-    "iat": "2025-09-26T19:16:27.833Z",
-    "nbf": "2025-09-26T19:16:27.833Z",
-    "exp": "2025-09-27T19:16:27.82Z",
+	"jti": "0199be4c-0c80-7b3e-9d6d-463dfb34f6f4",
+	"iat": "2025-10-07T10:51:19.04Z",
+	"nbf": "2025-10-07T10:51:19.04Z",
+    "exp": "2025-10-07T11:51:19.04Z",
     "typ": "JET"
 }
 ```
@@ -92,14 +92,12 @@ Contains two AEAD outputs: the encrypted content and the encrypted CEK (Content 
 ```json
 {
     "ct": {
-        "c": "iT1zBdyEEK1hW6yCxP2-ebL-9wU826Cdyyuxs-rFY2MBUO8cam1ohMKsHpf1P0X8SCa90kyAZUNl4GtzrR-zgyPQG8KsBPQp7MWGBgCCTWS2Erjl-NZXFlWJD3YiKcQvX3PTocVlwbKhCdUkME2x3pmCNdraIXo8WhgRZwJLaEXHFjyrqjh41MjvvcbZmaJHxJ24",
-        "t": "I5K5a003gjF8VeLsMdO7fA",
-        "n": "oleKByrG0AwU2ot_"
+        "c": "AINpJYm0Xl9QZnw3byuGY37TbgsdBhB3Ge71LzWKLJ6sgjOnw8I6wiRFpTsIWcgNd7ciD-OfXOiJG0xNg8KOrtiursMA4yEQRxz6eKxZlS0mhKjF0ioLRClDfKLhe--R9E1qf9baURln2AcxgzQYQA6THEDLpwwPI3dCQo__xXer-PniNT5-yzW2ivzElsvLyQHTxfCmx3ZTTD8rNW4_0dVPHQ",
+        "n": "imokYf6ZYk1xwDar"
     },
     "k": {
-        "c": "ys1wdmy0Ttl5oFSd_JtMWkR7e9c3g3bSbJxAbl84enQ",
-        "t": "nRiqIk60vK2D6twJxQiApQ",
-        "n": "05FYx3BrwHHPvWJo"
+        "c": "17LPTp3qPvqwW7leYV4fKMUvTISLK0rj7vugbV5X-0S4z3BNwcStWJH8Q6Y6jYm9",
+        "n": "xdKFQlDFTTq3MNeI"
     }
 }
 ```
@@ -149,26 +147,16 @@ JET implements multiple layers of replay protection:
 ```csharp
 using JetNet;
 using JetNet.Crypto;
-using System.Security;
+using SysCrypto = System.Security.Cryptography;
 
 // Secure password handling
-using var securePassword = new SecureString();
-string plainPassword = "G7$wR9!vZp2#qK8d";
-try
-{
-    foreach (char c in plainPassword)
-        securePassword.AppendChar(c);
-}
-finally
-{
-    plainPassword = string.Empty;
-    securePassword.MakeReadOnly();
-}
-
-var jet = new Jet(securePassword);
+Span<byte> _key = stackalloc byte[32];
+SysCrypto.RandomNumberGenerator.Fill(_key);
+using var jet = new Jet(_key);
+SysCrypto.CryptographicOperations.ZeroMemory(_key);
 
 // Sensitive payload data
-var payload = new
+var _payload = new
 {
     user = "Soheil Jashnsaz",
     role = "admin",
@@ -181,22 +169,24 @@ var payload = new
 };
 
 // Public metadata (will be in authenticated but unencrypted header)
-Dictionary<string, string> keyValuePairs = new Dictionary<string, string>();
-keyValuePairs.Add("app", "my-application");
+Dictionary<string, string> _metadata = new Dictionary<string, string>()
+{
+    { "app", "my-application" }
+};
+
 
 // Strong key derivation configuration
-var kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
+var _kdf = KdfFactory.CreateArgon2id(parallelism: 1, memory: 65536, iterations: 3);
 
 // Create encrypted token
-string token = jet.Encode(payload, kdf, SymmetricAlgorithm.AES_256_GCM, 
-    expiration: DateTime.UtcNow.AddHours(24), metadata: keyValuePairs);
+string _token = jet.Encode(_payload, _kdf, metadata: _metadata);
 
 // Decode with validation
-var decoded = jet.Decode<dynamic>(token, ValidateMetadata, ValidateTokenID);
+var _decoded = jet.Decode<dynamic>(_token, ValidateMetadata, ValidateTokenID);
 
 Console.WriteLine("Token created successfully");
-Console.WriteLine($"User: {decoded.user}");
-Console.WriteLine($"Role: {decoded.role}");
+Console.WriteLine($"User: {_decoded.user}");
+Console.WriteLine($"Role: {_decoded.role}");
 
 // Validation functions
 bool ValidateMetadata(Dictionary<string, string> metadata)
@@ -233,7 +223,7 @@ Comprehensive round-trip validation across supported cipher/KDF combinations:
 
 **Encoded Token:**
 ```
-eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6IjIwMjUtMDktMjdUMTk6MTY6MjcuODJaIiwiaWF0IjoiMjAyNS0wOS0yNlQxOToxNjoyNy44MzNaIiwianRpIjoiMDE5OTg3NzQtOTI0Mi03Yjk2LThhYTktNTFkM2UzOWFmOWNiIiwia2RmIjp7InQiOiJBcmdvbjJpZCIsIm0iOjY1NTM2LCJpIjozLCJwIjoxLCJzIjoiZ0lWQ0dOaUtJRkdCVmlZR3MxSC1xUSJ9LCJtZCI6eyJhcHAiOiJteS1hcHBsaWNhdGlvbiJ9LCJuYmYiOiIyMDI1LTA5LTI2VDE5OjE2OjI3LjgzM1oiLCJ0eXAiOiJKRVQifQ.eyJjdCI6eyJjIjoiaVQxekJkeUVFSzFoVzZ5Q3hQMi1lYkwtOXdVODI2Q2R5eXV4cy1yRlkyTUJVTzhjYW0xb2hNS3NIcGYxUDBYOFNDYTkwa3lBWlVObDRHdHpyUi16Z3lQUUc4S3NCUFFwN01XR0JnQ0NUV1MyRXJqbC1OWlhGbFdKRDNZaUtjUXZYM1BUb2NWbHdiS2hDZFVrTUUyeDNwbUNOZHJhSVhvOFdoZ1Jad0pMYUVYSEZqeXJxamg0MU1qdnZjYlptYUpIeEoyNCIsInQiOiJJNUs1YTAwM2dqRjhWZUxzTWRPN2ZBIiwibiI6Im9sZUtCeXJHMEF3VTJvdF8ifSwiayI6eyJjIjoieXMxd2RteTBUdGw1b0ZTZF9KdE1Xa1I3ZTljM2czYlNiSnhBYmw4NGVuUSIsInQiOiJuUmlxSWs2MHZLMkQ2dHdKeFFpQXBRIiwibiI6IjA1Rll4M0Jyd0hIUHZXSm8ifX0
+eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6IjIwMjUtMTAtMDdUMTE6NTE6MTkuMDRaIiwiaWF0IjoiMjAyNS0xMC0wN1QxMDo1MToxOS4wNFoiLCJqdGkiOiIwMTk5YmU0Yy0wYzgwLTdiM2UtOWQ2ZC00NjNkZmIzNGY2ZjQiLCJrZGYiOnsidCI6IkFyZ29uMmlkIiwibSI6NjU1MzYsImkiOjMsInAiOjEsInMiOiI5bjNsWHU2VkJGRzh1N2gtZ3BwRGx3In0sIm1kIjp7ImFwcCI6Im15LWFwcGxpY2F0aW9uIn0sIm5iZiI6IjIwMjUtMTAtMDdUMTA6NTE6MTkuMDRaIiwidHlwIjoiSkVUIn0.eyJjdCI6eyJjIjoiQUlOcEpZbTBYbDlRWm53M2J5dUdZMzdUYmdzZEJoQjNHZTcxTHpXS0xKNnNnak9udzhJNndpUkZwVHNJV2NnTmQ3Y2lELU9mWE9pSkcweE5nOEtPcnRpdXJzTUE0eUVRUnh6NmVLeFpsUzBtaEtqRjBpb0xSQ2xEZktMaGUtLVI5RTFxZjliYVVSbG4yQWN4Z3pRWVFBNlRIRURMcHd3UEkzZENRb19feFhlci1QbmlOVDUteXpXMml2ekVsc3ZMeVFIVHhmQ214M1pUVEQ4ck5XNF8wZFZQSFEiLCJuIjoiaW1va1lmNlpZazF4d0RhciJ9LCJrIjp7ImMiOiIxN0xQVHAzcVB2cXdXN2xlWVY0ZktNVXZUSVNMSzByajd2dWdiVjVYLTBTNHozQk53Y1N0V0pIOFE2WTZqWW05IiwibiI6InhkS0ZRbERGVFRxM01OZUkifX0
 ```
 
 **After Decryption (sensitive data protected):**
@@ -254,9 +244,38 @@ eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6IjIwMjUtMDktMjdUMTk6MTY6MjcuODJaIiwiaWF0Ijoi
 
 ```
 
-## 🔑 Master Password Security
+## 🔑 Master Key / Password Security
 
-JET's security fundamentally depends on password strength. Memory-hard key derivation provides defense against brute-force attacks but cannot overcome weak password entropy.
+JET supports two input modes for authentication: **byte-based master keys** and **string-based passwords**.  
+While both are secure, **byte arrays are strongly recommended** for high-security applications, as they allow full control over memory lifecycle and zeroization.
+
+### 🧩 Option 1: Master Key (Byte Array) — *Recommended*
+The most secure way to initialize JET is by providing a raw byte sequence.  
+This approach avoids managed strings, prevents GC exposure, and enables direct integration with HSMs or key vaults.
+
+**Example (secure memory use):**
+```csharp
+Span<byte> key = stackalloc byte[32];
+RandomNumberGenerator.Fill(key);
+using var jet = new Jet(key);
+CryptographicOperations.ZeroMemory(key);
+```
+
+**Advantages:**
+- 🧠 Never exposes secrets in managed memory  
+- ⚡ Enables direct use of hardware or derived session keys  
+- 🧩 Compatible with secure key lifecycle management  
+- 🧹 Can be safely wiped using `CryptographicOperations.ZeroMemory`
+
+
+### 🔐 Option 2: Password (String)
+For convenience, JET also accepts traditional passwords as UTF-8 strings.  
+Internally, the string is converted to bytes, used to derive the encryption key, and then **immediately wiped from memory**.
+
+**Example:**
+```csharp
+using var jet = new Jet("CorrectHorseBatteryStaple9X2m");
+```
 
 **Essential Requirements:**
 - ✅ Minimum 16 characters with high entropy
@@ -276,6 +295,12 @@ Multiple unrelated words can provide equivalent security with better memorabilit
 ```
 correct-horse-battery-staple-9X2m
 ```
+
+### ⚖️ Summary
+| Mode | Type | Security | Use Case |
+|------|------|-----------|-----------|
+| **Master Key (Byte Array)** | `ReadOnlySpan<byte>` | 🔒 Highest | Cryptographic systems, secure sessions, HSM integration |
+| **Password (String)** | `string` | 🟡 Moderate | User-entered credentials, UI-based applications |
 
 
 ## 🤝 Contributing
