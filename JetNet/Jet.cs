@@ -5,7 +5,6 @@ using JetNet.Exceptions;
 using JetNet.Models.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Globalization;
 using System.Text;
 using SysCrypto = System.Security.Cryptography;
 
@@ -49,9 +48,9 @@ namespace JetNet
             ICipher cipher = symmetric.ToCipher();
 
             var now = DateTime.UtcNow;
-            var iat = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-            var nbf = (notBefore ?? now).ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-            var exp = (expiration ?? now.AddHours(1)).ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            var iat = ((DateTimeOffset)now).ToUnixTimeSeconds();
+            var nbf = ((DateTimeOffset)(notBefore ?? now)).ToUnixTimeSeconds();
+            var exp = ((DateTimeOffset)(expiration ?? now.AddHours(1))).ToUnixTimeSeconds();
 
             // --- Salt ---
             Span<byte> salt = stackalloc byte[kdf.MaxSaltSize];
@@ -63,9 +62,9 @@ namespace JetNet
                 Symmetric = symmetric.SymmetricToString(),
                 Kdf = kdf.GetParams(salt),
                 Id = Guid.CreateVersion7(),
-                IssuedAt = DateTime.Parse(iat, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
-                NotBefore = DateTime.Parse(nbf, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal),
-                Expiration = DateTime.Parse(exp, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal)
+                IssuedAt = iat,
+                NotBefore = nbf,
+                Expiration = exp
             };
             if (metadata != null)
             {
@@ -251,11 +250,13 @@ namespace JetNet
             }
 
             // --- Validate timing ---
+            var nbf = DateTimeOffset.FromUnixTimeSeconds(header.NotBefore).UtcDateTime;
+            var exp = DateTimeOffset.FromUnixTimeSeconds(header.Expiration).UtcDateTime;
             var now = DateTime.UtcNow;
-            if (header.NotBefore > now)
-                throw new JetTokenException($"Token is not valid yet. NotBefore: {header.NotBefore:u}, Now: {now:u}");
-            if (header.Expiration < now)
-                throw new JetTokenException($"Token has expired. Expiration: {header.Expiration:u}, Now: {now:u}");
+            if (nbf > now)
+                throw new JetTokenException($"Token is not valid yet. NotBefore: {nbf:u}, Now: {now:u}");
+            if (exp < now)
+                throw new JetTokenException($"Token has expired. Expiration: {exp:u}, Now: {now:u}");
 
             // --- Validate claims ---
             if (validateMetadata != null && header.Metadata != null)

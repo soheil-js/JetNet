@@ -20,13 +20,13 @@ namespace JetNet.Models.Core
         public Guid Id { get; set; }
 
         [JsonProperty("iat")]
-        public DateTime IssuedAt { get; set; }
+        public long IssuedAt { get; set; }
 
         [JsonProperty("nbf")]
-        public DateTime NotBefore { get; set; }
+        public long NotBefore { get; set; }
 
         [JsonProperty("exp")]
-        public DateTime Expiration { get; set; }
+        public long Expiration { get; set; }
 
         [JsonProperty("typ")]
         public string Type { get; set; } = "JET";

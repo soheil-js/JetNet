@@ -73,15 +73,15 @@ Contains algorithm parameters, KDF configuration, and public metadata:
         "m": 65536,
         "i": 3,
         "p": 1,
-        "s": "9n3lXu6VBFG8u7h-gppDlw"
+        "s": "j6K93DzEKt5dTYbA8lF2gw"
     },
 	"md": {
         "app": "my-application"
     },
-	"jti": "0199be4c-0c80-7b3e-9d6d-463dfb34f6f4",
-	"iat": "2025-10-07T10:51:19.04Z",
-	"nbf": "2025-10-07T10:51:19.04Z",
-    "exp": "2025-10-07T11:51:19.04Z",
+	"jti": "019b2df2-9778-743c-8d68-941b72a5f08b",
+	"iat": 1766002431,
+	"nbf": 1766002431,
+    "exp": 1766006031,
     "typ": "JET"
 }
 ```
@@ -92,12 +92,12 @@ Contains two AEAD outputs: the encrypted content and the encrypted CEK (Content 
 ```json
 {
     "ct": {
-        "c": "AINpJYm0Xl9QZnw3byuGY37TbgsdBhB3Ge71LzWKLJ6sgjOnw8I6wiRFpTsIWcgNd7ciD-OfXOiJG0xNg8KOrtiursMA4yEQRxz6eKxZlS0mhKjF0ioLRClDfKLhe--R9E1qf9baURln2AcxgzQYQA6THEDLpwwPI3dCQo__xXer-PniNT5-yzW2ivzElsvLyQHTxfCmx3ZTTD8rNW4_0dVPHQ",
-        "n": "imokYf6ZYk1xwDar"
+        "c": "U4D3Dwydw5pBimccuMBVentQcECqiV2YLxyLaPxnqkJw5D4Ex9EflxhUvheqg0V-zBYlGxJ1MBSWQIsV05T6K00dnJKDgK2rBbVPxTBfR5WcAMQPpFot6Eolm2EJHOd4lFPsr-JoZu9Xag7xOBfKHmYIL766BBAwUUGQmPf6bR9B8qVip6QZCAdqtPjppRmAl-QgvigzjlUNL24Cz1fVwO4Mww",
+        "n": "CFHk6NqPPOaYmTcz"
     },
     "k": {
-        "c": "17LPTp3qPvqwW7leYV4fKMUvTISLK0rj7vugbV5X-0S4z3BNwcStWJH8Q6Y6jYm9",
-        "n": "xdKFQlDFTTq3MNeI"
+        "c": "8sKBYXTtbTFD3SKqzIEIByyWOr9mUtBTHqRMW3h-qtnsBOPuYj6IKavo757DPh2_",
+        "n": "KgKh0LRev7b5Cf9v"
     }
 }
 ```
@@ -223,7 +223,7 @@ Comprehensive round-trip validation across supported cipher/KDF combinations:
 
 **Encoded Token:**
 ```
-eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6IjIwMjUtMTAtMDdUMTE6NTE6MTkuMDRaIiwiaWF0IjoiMjAyNS0xMC0wN1QxMDo1MToxOS4wNFoiLCJqdGkiOiIwMTk5YmU0Yy0wYzgwLTdiM2UtOWQ2ZC00NjNkZmIzNGY2ZjQiLCJrZGYiOnsidCI6IkFyZ29uMmlkIiwibSI6NjU1MzYsImkiOjMsInAiOjEsInMiOiI5bjNsWHU2VkJGRzh1N2gtZ3BwRGx3In0sIm1kIjp7ImFwcCI6Im15LWFwcGxpY2F0aW9uIn0sIm5iZiI6IjIwMjUtMTAtMDdUMTA6NTE6MTkuMDRaIiwidHlwIjoiSkVUIn0.eyJjdCI6eyJjIjoiQUlOcEpZbTBYbDlRWm53M2J5dUdZMzdUYmdzZEJoQjNHZTcxTHpXS0xKNnNnak9udzhJNndpUkZwVHNJV2NnTmQ3Y2lELU9mWE9pSkcweE5nOEtPcnRpdXJzTUE0eUVRUnh6NmVLeFpsUzBtaEtqRjBpb0xSQ2xEZktMaGUtLVI5RTFxZjliYVVSbG4yQWN4Z3pRWVFBNlRIRURMcHd3UEkzZENRb19feFhlci1QbmlOVDUteXpXMml2ekVsc3ZMeVFIVHhmQ214M1pUVEQ4ck5XNF8wZFZQSFEiLCJuIjoiaW1va1lmNlpZazF4d0RhciJ9LCJrIjp7ImMiOiIxN0xQVHAzcVB2cXdXN2xlWVY0ZktNVXZUSVNMSzByajd2dWdiVjVYLTBTNHozQk53Y1N0V0pIOFE2WTZqWW05IiwibiI6InhkS0ZRbERGVFRxM01OZUkifX0
+eyJlbmMiOiJBRVMtMjU2LUdDTSIsImV4cCI6MTc2NjAwNjAzMSwiaWF0IjoxNzY2MDAyNDMxLCJqdGkiOiIwMTliMmRmMi05Nzc4LTc0M2MtOGQ2OC05NDFiNzJhNWYwOGIiLCJrZGYiOnsidCI6IkFyZ29uMmlkIiwibSI6NjU1MzYsImkiOjMsInAiOjEsInMiOiJqNks5M0R6RUt0NWRUWWJBOGxGMmd3In0sIm1kIjp7ImFwcCI6Im15LWFwcGxpY2F0aW9uIn0sIm5iZiI6MTc2NjAwMjQzMSwidHlwIjoiSkVUIn0.eyJjdCI6eyJjIjoiVTREM0R3eWR3NXBCaW1jY3VNQlZlbnRRY0VDcWlWMllMeHlMYVB4bnFrSnc1RDRFeDlFZmx4aFV2aGVxZzBWLXpCWWxHeEoxTUJTV1FJc1YwNVQ2SzAwZG5KS0RnSzJyQmJWUHhUQmZSNVdjQU1RUHBGb3Q2RW9sbTJFSkhPZDRsRlBzci1Kb1p1OVhhZzd4T0JmS0htWUlMNzY2QkJBd1VVR1FtUGY2YlI5QjhxVmlwNlFaQ0FkcXRQanBwUm1BbC1RZ3ZpZ3pqbFVOTDI0Q3oxZlZ3TzRNd3ciLCJuIjoiQ0ZIazZOcVBQT2FZbVRjeiJ9LCJrIjp7ImMiOiI4c0tCWVhUdGJURkQzU0txeklFSUJ5eVdPcjltVXRCVEhxUk1XM2gtcXRuc0JPUHVZajZJS2F2bzc1N0RQaDJfIiwibiI6IktnS2gwTFJldjdiNUNmOXYifX0
 ```
 
 **After Decryption (sensitive data protected):**
